@@ -1,0 +1,50 @@
+= jaxrs-jsonb-exceptionmapper
+
+The JAX-RS spec does not specify ExceptionMappers for MessageBodyReader instances, the outcome will be dependent on the container.
+This example shows how to catch such an exception anyway.
+
+== The problem
+
+If you have a request body in a `@POST` request and want it to have parsed into a java value object, the MessageBodyReader supplied by your container vendor should take care of this.
+
+However, the exception thrown on missing fields is dependent on the vendor’s implementation:
+The exact signature is:
+
+[source,java]
+----
+public T readFrom(
+        Class<T> type,
+        Type genericType,
+        Annotation[] annotations,
+        MediaType mediaType,
+        MultivaluedMap<String, String> httpHeaders,
+        InputStream entityStream) throws
+    java.io.IOException,
+    javax.ws.rs.WebApplicationException;
+----
+
+Now, the vendor can decide to wrap the `JsonbException` into a `WebApplicationException`.
+Why is this important?
+Well, now your `JsonbExceptionMapper` will not see the exception.
+You will get an empty response entity, no matter how you define your `JsonbExceptionMapper`.
+
+== The solution
+
+At least for Open Liberty, a `BadRequestException` is thrown.
+The idea here is to catch that exception, peek into the cause (if it exists) and map this exception.
+
+== How to run this project
+
+Execute `./mvnw clean liberty:dev`.
+A OpenLiberty server will boot up with the application.
+Just press `Enter` to execute the IT test case.
+
+== Example implementations
+
+=== OpenLiberty
+
+Jsonb MessageBodyReader implementation: https://github.com/OpenLiberty/open-liberty/blob/integration/dev/com.ibm.ws.org.apache.cxf.cxf.rt.frontend.jaxrs.3.2/src/com/ibm/ws/jaxrs21/providers/json/JsonBProvider.java[jaxrs-2.1 JsonBProvider.java]
+
+=== Payara
+
+Jsonb MessageBodyReader implementation: https://github.com/payara/Payara/blob/master/appserver/ejb/ejb-http-remoting/endpoint/src/main/java/fish/payara/ejb/http/protocol/rs/JsonbInvokeMethodMessageBodyReader.java[rs JsonbInvokeMethodMessageBodyReader.java]
